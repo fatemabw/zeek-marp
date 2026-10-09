@@ -119,8 +119,8 @@ pre { font-size: 65%; }
 For example, for console output:
 
 ```console
-$ ls -la | foo
-bar!
+$ while true; do ls -la | foo; done
+bar
 ```
 
 ---
@@ -155,12 +155,14 @@ This is just text that explains what the thing on the right is all about.
 
 ---
 
-# Let's grok Zeek
+# Let's figure out Zeek
 
-We can do some `&redef` and other attributes.
+We can mention some inline code, like `&redef`, and we can highlight Zeek script:
 
-```javascript
-event zeek_init() {
+```zeek
+@load ./foo
+
+event zeek_init() &priority=-5 {
     print "hello world!";
 }
 ```
