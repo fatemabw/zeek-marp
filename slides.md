@@ -28,13 +28,16 @@ Fatema Bannat Wala
 
 # Agenda
 
-- What is a Zeek / Cluster? - (15 mins) Fatema
-- Become familiar with Cluster Configs - (45 mins) Fatema
-- Zeek’s Filesystem Layout - (30 mins) Fatema
-- (break 10:30am - 10:45am)
-- Running Zeek and log analysis - (45mins) Christian
-- Customizing Zeek - (30mins) CHristian
-- (Lunch 1hr 12:00pm - 1pm)
+- What is a Zeek / Cluster? - Fatema
+- Become familiar with Cluster Configs - Fatema
+- Zeek’s Filesystem Layout - Fatema
+- Running Zeek in a Cluster - Fatema
+(break 10:30am - 10:45am)
+- Invoking Zeek via cmd line - Christian
+- Zeek Package Manager - Christian
+- Zeek log analysis - Christian
+
+(Lunch 12:00pm - 1pm)
 
 ---
 
@@ -296,158 +299,234 @@ $ zeekctl stop
 # MORNING BREAK [15 mins] 10:30-10:45am
 
 ---
+# Invoking Zeek via cmd line
 
-# A standard bullet slide
-
-The following items appear bit-by-bit:
-
-* An item with text
-* And another
-  * with a subitem
-
----
-
-# Section level 1
-
-## Section level 2
-
-### Section level 3
-
-#### Section level 4
-
-##### Section level 5
-
----
-
-## A multi section slide
-
-These all appear at once:
-
-- An item with text
-- And another
-
-## With another section
-
-- An item with text
-- And another
-
----
-
-# A two-column slide
-
-<div class="columns">
-<div>
-
-* An item
-* And another
-
-</div>
-<div>
-
-* And yet another
-* And the last
-
-</div>
-</div>
-
----
-
-# Text on the left, code on the right
-
-<div class="columns">
-<div>
-
-This is just text that explains what the thing on the right is all about.
-
-In this case, it's some JSON.
-
-</div>
-<div>
-
-<style scoped>
-pre { font-size: 65%; }
-</style>
-
-```json
-{
-  "ts": 1117503119.471231,
-  "uid": "CuOgIYhboLbVMhTnh",
-  "id.orig_h": "192.150.186.238",
-  "id.orig_p": 42762,
-  "id.resp_h": "66.35.250.209",
-  "id.resp_p": 80,
-  "proto": "tcp",
-  "service": "http",
-  "duration": 6.483856916427612,
-  "orig_bytes": 377,
-  "resp_bytes": 10041,
-  "conn_state": "SF",
-  "local_orig": false,
-  "local_resp": false,
-  "missed_bytes": 0,
-  "history": "ShADadfF",
-  "orig_pkts": 11,
-  "orig_ip_bytes": 957,
-  "resp_pkts": 10,
-  "resp_ip_bytes": 10569,
-  "ip_proto": 6
-}
-```
-
-</div>
-</div>
-
----
-
-# Text on top, code below
-
-For example, for console output:
-
+- For offline analysis use zeek -r on a packet capture:
 ```console
-$ while true; do ls -la | foo; done
-bar
+ # zeek -r /zeek-training/traces/zeek-doc/quickstart.pcap
+ # rm -f *.log
 ```
-
----
-
-# A big image with some text
-
-![center width:400px](zeek-logo.png)
-
-This is one of several ways to center an image.
-
----
-
-# Text on the left, image right
-
-<div class="columns">
-<div>
-
-This is just text that explains what the thing on the right is all about.
-
-</div>
-<div>
-
-![center width:300px](zeek-logo.png)
-
-</div>
-</div>
-
----
-
-<!-- _class: chapter -->
-# Moving on!
-
----
-
-# Let's figure out Zeek
-
-We can mention some inline code, like `&redef`, and we can highlight Zeek script:
-
-```zeek
-@load ./foo
-
-event zeek_init() &priority=-5 {
-    print "hello world!";
-}
+- Zeek cmd to analyze live traffic
+```console
+ # zeek -C -i eth0
+ # listening on eth0
 ```
+- Generate some test traffic in another terminal
+```console
+ $ docker exec -it zeek-tutorial /bin/bash
+ # ping example.com -c 1
+ # exit
+```
+---
+# Providing Script Values
+
+- Modify tunable variables directly from the command line
+```console
+ # zeek -r /zeek-training/traces/zeek-doc/quickstart.pcap LogAscii::use_json=T
+```
+- Change the FTP analyzer to capture passwords and log the necessary FTP command:
+```console
+ # zeek -Cr /zeek-training/traces/zeek-testing/ftp
+/ftp-password-pass-command.pcap FTP::default_capture_password=T  ‘FTP::logged_commands+={“PASS”}’
+
+ # cat ftp.log
+```
+---
+# Providing Script Values
+
+- Use zeek -e and provide arbitrary quoted Zeek script segments:
+```console
+ # zeek -e "print \"hello\"; print\"there\";"
+ hello
+ there
+
+```
+- Read script code from standard input:
+```console
+ # echo "print \"Hello, world\!\";" | zeek
+ Hello, world!
+```
+---
+# Analyzing Zeek Logs
+
+- Zeek’s default log format is tab-separated values, or TSV
+```console
+ # zeek -r /zeek-training/traces/zeek-doc/quickstart.pcap
+```
+Using zeek-cut for more condensed log format
+```console
+ # cat conn.log | zeek-cut -m
+```
+Filtering on interesting fields 
+```console
+ # cat conn.log | zeek-cut -m uid id.orig_h id.orig_p id.resp_h id.resp_p
+```
+Looking at the weird.log file, notice the uid field 
+```console
+ # cat weird.log | zeek-cut -m uid name
+```
+convert the epoch timestamps to a human readable format:
+```console
+ # cat conn.log | zeek-cut -m ts
+ # cat conn.log | zeek-cut -m -d ts
+```
+---
+# Zeek Log Schemas
+
+- Zeek’s logschema package helps you understand your Zeek logs. 
+- It produces log schemas that detail your installation’s set of logs and their fields. 
+- For each field, the schemas provide rich metadata including name, type, and docstrings. 
+- They can also explain the source of a field, such as the specific script or the name of the Zeek package that added it. 
+- Log schemas are also a great way to understand how and whether your logs change when you upgrade to a newer version of Zeek.
+
+---
+# Zeek Log Schemas
+```console
+# zkg install logschema
+The following packages will be INSTALLED:
+  zeek/zeek/logschema (v2.0.0)
+
+Proceed? [Y/n] y
+Running unit tests for "zeek/zeek/logschema"
+Installing "zeek/zeek/logschema"
+Installed "zeek/zeek/logschema" (v2.0.0)
+Loaded "zeek/zeek/logschema"
+
+# zeek logschema/export/jsonschema packages
+```
+---
+# Zeek Log Schemas Example
+
+Your local directory will now contain a JSON Schema description for each of your installation’s logs. If we want to find more about Zeek’s DNS log, we can do the following:
+```console
+#cat zeek-dns-log.schema.json | jq
+```
+Let’s use one of the testing PCAPs to make some DNS logs:
+ ```console
+# zeek -r /zeek-training/traces/zeek-testing/dns/naptr.pcap
+```
+Then, we can find these in our DNS logs and examine the logs via zeek-cut:
+```console
+# cat dns.log | zeek-cut -m uid answers
+```
+---
+# Zeek JSON Logs
+
+Zeek also allows emitting logs in JSON form, rather than as TSV files.
+```console
+# zeek -r /zeek-training/traces/zeek-doc/quickstart.pcap LogAscii::use_json=T
+# jq . -c conn.log
+
+#jq -c '[."id.orig_h", ."id.resp_h"]' conn.log
+```
+You can do the same in a cluster by modifying your site’s local.zeek:
+```console
+vim $PREFIX/share/zeek/site/local.zeek
+```
+Then add a line (anywhere!) that loads the policy/tuning/json-logs script:
+```console
+@load policy/tuning/json-logs
+```
+---
+# Zeek logs IR Example
+
+- Looking at some malicious traffic
+```console
+# zeek -Cr /training-res/traces/2022-02-23-traffic-analysis-exercise.pcap local
+```
+- Find suspicious connections
+```console
+# grep -v "^#" conn.log | zeek-cut id.orig_h id.resp_h id.resp_p service conn_state | grep S0 | sort | uniq -c | sort -rn | head
+```
+- Find external connections
+```console
+# zeek-cut id.orig_h id.resp_h id.resp_p service < conn.log | sort | uniq -c | sort -rn | head -30
+```
+- Once you find a suspicious IP, look at EVERYTHING about it
+```console
+# SUSPECT="<suspicious-ip>"
+# grep "$SUSPECT" *.log
+```
+---
+# Package Manager (zkg)
+
+- Package Manager
+  - zkg
+  - https://packages.zeek.org
+
+- Can add new scripts or analyzers
+  - Analyzer examples :
+    - QUIC
+    - PerfSonar
+  - Scripts : 
+    - BZAR 
+    - DHCP OUI data
+
+---
+# Let’s Use zkg!
+
+- List all zeek packages and install a few
+```console
+# zkg refresh
+# zkg list all
+# zkg install cve-2020-0601
+```
+- Check if they got installed
+```console
+# zkg list installed
+# ls /zeek/share/zeek/site
+```
+- Let’s load the packages
+  uncomment @load packages in site/local.zeek
+
+---
+# Let’s Use zkg!
+
+- zkg load/unload and info
+```console
+# zkg unload cve-2020-0601
+# zkg info cve-2020-0601
+```
+- Remove and uninstall all the packages
+```console
+# zkg purge
+# zkg list installed
+```
+- Other useful zkg commands
+```console
+remove, pin, unpin, upgrade, refresh
+```
+---
+# Exercise #3: Zkg 
+
+Running Zeek with zkg installed packages, specifically with JA3.
+```console
+# zkg install ja3
+# zeekctl deploy
+# tcpreplay -i eth0 --mbps=500 /training-res/traces/extract.pcap
+# less /zeek/logs/current/ssl.log
+# cat ssl.log | zeek-cut -d ja3 ja3s
+```
+---
+# Exercise #4: Zkg 
+
+Extract a file from a file transfer connection using file-extract zkg package 
+```console
+# zkg install file-extraction
+```
+Add all file types extraction to the config of the package:
+```console
+# vi /zeek/share/zeek/site/packages/file-extraction/config.zeek
+redef path = "/extracted_files/";
+@load ./plugins/extract-all-files.zeek
+
+
+# mkdir /extracted_files
+# zeekctl deploy 
+# tcpreplay -i eth0 --mbps=500 /training-res/traces/extract.pcap
+# ls /extracted_files/ 
+# less files.log
+```
+---
+# Lunch Break
+---
